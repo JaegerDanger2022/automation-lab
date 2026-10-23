@@ -33,7 +33,7 @@
             {
               "id": "1",
               "name": "apiUrl",
-              "value": "https://lab-api.onrender.com",
+              "value": "https://lab-api-z3mx.onrender.com",
               "type": "string"
             },
             {
