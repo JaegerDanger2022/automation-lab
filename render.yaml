@@ -37,6 +37,12 @@ services:
         value: https://flows.martins-portfolio.click/
       - key: N8N_EDITOR_BASE_URL
         value: https://flows.martins-portfolio.click/
+      - key: N8N_PROXY_HOPS
+        value: "1"                      # behind Render's proxy: trust X-Forwarded-*, keeps login cookies working
+      - key: N8N_PROTOCOL
+        value: https
+      - key: N8N_HOST
+        value: flows.martins-portfolio.click
       - key: N8N_LISTEN_ADDRESS
         value: 0.0.0.0
       - key: N8N_RUNNERS_GRANT_TOKEN_TTL
