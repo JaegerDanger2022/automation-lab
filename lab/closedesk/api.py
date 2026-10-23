@@ -22,8 +22,8 @@ SAMPLES = Path(__file__).resolve().parents[2] / "data" / "closedesk" / "invoices
 ALLOWED = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
 MAX_BYTES = 8 * 1024 * 1024
 
-# Rough per-million-token prices for the cost log. Set to the model you deploy with.
-PRICE_IN, PRICE_OUT = 3.0, 15.0
+# Per-million-token prices for the cost log (Claude Haiku 5.5, prompts under 100k tokens).
+PRICE_IN, PRICE_OUT = 0.10, 0.50
 
 
 @router.get("/samples")
