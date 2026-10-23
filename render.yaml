@@ -11,7 +11,7 @@ services:
     image:
       url: docker.io/n8nio/n8n:latest
     plan: free
-    healthCheckPath: /healthz
+    # No health check path: n8n boots slowly on the free CPU and would be restarted mid-start.
     envVars:
       - key: PORT
         value: "5678"
@@ -33,8 +33,20 @@ services:
         value: "true"                  # Neon requires SSL
       - key: N8N_ENCRYPTION_KEY
         generateValue: true
-      - key: WEBHOOK_URL
-        value: https://n8n-5ive.onrender.com/
+      - key: N8N_WEBHOOK_URL
+        value: https://flows.martins-portfolio.click/
+      - key: N8N_EDITOR_BASE_URL
+        value: https://flows.martins-portfolio.click/
+      - key: N8N_LISTEN_ADDRESS
+        value: 0.0.0.0
+      - key: N8N_RUNNERS_GRANT_TOKEN_TTL
+        value: "180"                    # slow free CPU: give the task runner time to connect
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=400 # free plan has 512 MB
+      - key: N8N_DIAGNOSTICS_ENABLED
+        value: "false"
+      - key: N8N_VERSION_NOTIFICATIONS_ENABLED
+        value: "false"
       - key: GENERIC_TIMEZONE
         value: Africa/Accra
       - key: EXECUTIONS_DATA_PRUNE
