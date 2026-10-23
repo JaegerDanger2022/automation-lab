@@ -7,6 +7,7 @@ services:
   - type: web
     name: n8n
     runtime: image
+    region: frankfurt                 # same region as the Neon database
     image:
       url: docker.io/n8nio/n8n:latest
     plan: free
@@ -44,6 +45,7 @@ services:
   - type: web
     name: lab-api
     runtime: docker
+    region: frankfurt
     plan: free
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
