@@ -1,0 +1,561 @@
+{
+  "name": "Close Desk: demo pipeline",
+  "nodes": [
+    {
+      "id": "ab96b2cb-2f03-4723-9d28-6479968e3803",
+      "name": "Demo request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "closedesk-demo",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "4ec1fc99-3746-4429-a10e-816cf5491d55"
+    },
+    {
+      "id": "8ea34866-9cca-4777-a8b7-ecc1fc85d868",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "apiUrl",
+              "value": "https://lab-api.onrender.com",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "sample",
+              "value": "={{ $json.body.sample }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "visitor",
+              "value": "={{ $json.headers['x-forwarded-for'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "slackWebhook",
+              "value": "https://hooks.slack.com/services/REPLACE",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "649f886a-c842-454a-b736-505f8b6e47c0",
+      "name": "Start run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.apiUrl }}/v1/runs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ build: 'closedesk', is_demo: true, input_ref: $json.sample, visitor: $json.visitor }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Lab API key"
+        }
+      }
+    },
+    {
+      "id": "6ebe2ff8-dab5-4ea5-90ee-87bec7b055ad",
+      "name": "Reply with run id",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "3c1ca713-8667-46b8-bfb0-59fc83e0fc30",
+      "name": "Allowed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $('Start run').item.json.run_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "efa30803-03c4-42c6-bad4-ae498c622baa",
+      "name": "Extract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.apiUrl }}/v1/closedesk/extract",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "options": {
+          "timeout": 90000
+        },
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formData",
+              "name": "sample",
+              "value": "={{ $('Config').item.json.sample }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Lab API key"
+        }
+      }
+    },
+    {
+      "id": "82990bd8-ee11-402f-b3f3-bd79f6a62bf2",
+      "name": "Log extract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.apiUrl }}/v1/runs/{{ $('Start run').item.json.run_id }}/steps",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: 'Read the invoice', status: 'ok', detail: { path: $json.usage.path, vendor: $json.invoice.vendor_name, total: $json.invoice.total, cost_usd: $json.cost_usd } }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Lab API key"
+        }
+      }
+    },
+    {
+      "id": "4c1e66f2-1485-4c2d-9c70-59f98814fb32",
+      "name": "Check and record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.apiUrl }}/v1/closedesk/record",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ invoice: $('Extract').item.json.invoice, file_sha256: $('Extract').item.json.file_sha256, run_id: $('Start run').item.json.run_id }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Lab API key"
+        }
+      }
+    },
+    {
+      "id": "47a6ec01-e93f-437d-9cb6-ab8ef8431e48",
+      "name": "Log checks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.apiUrl }}/v1/runs/{{ $('Start run').item.json.run_id }}/steps",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: 'Checks and decision', status: ($json.decision === 'posted' ? 'ok' : 'warn'), detail: { decision: $json.decision, checks: $json.checks } }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Lab API key"
+        }
+      }
+    },
+    {
+      "id": "19eed32b-8f05-4dba-993b-8e4eba854a2e",
+      "name": "Route decision",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1980,
+        300
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Check and record').item.json.decision }}",
+                    "rightValue": "posted",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "posted"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Check and record').item.json.decision }}",
+                    "rightValue": "held",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "held"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "needs approval"
+        }
+      }
+    },
+    {
+      "id": "8aa6462c-ad41-49e4-9529-8d8d981c6e13",
+      "name": "Finish: posted",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2240,
+        140
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.apiUrl }}/v1/runs/{{ $('Start run').item.json.run_id }}/finish",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'succeeded', cost_usd: $('Extract').item.json.cost_usd, provider: 'anthropic' }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Lab API key"
+        }
+      }
+    },
+    {
+      "id": "de24a569-4d03-404d-9894-17afe056f967",
+      "name": "Slack: fraud hold",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2240,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.slackWebhook }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: ':rotating_light: Invoice HELD: ' + $('Extract').item.json.invoice.vendor_name + ' ' + $('Extract').item.json.invoice.invoice_number + ' GHS ' + $('Extract').item.json.invoice.total + '\\n' + $('Check and record').item.json.reasons.join('\\n') }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "93c00913-03ea-448b-9051-a7313c9b9860",
+      "name": "Slack: approval needed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2240,
+        460
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.slackWebhook }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: ':memo: Approval needed: ' + $('Extract').item.json.invoice.vendor_name + ' ' + $('Extract').item.json.invoice.invoice_number + '\\n' + $('Check and record').item.json.reasons.join('\\n') }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "a9d85532-1e6e-4b3d-80ad-c57fdadf4827",
+      "name": "Finish: held",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2460,
+        380
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.apiUrl }}/v1/runs/{{ $('Start run').item.json.run_id }}/finish",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'held', cost_usd: $('Extract').item.json.cost_usd, provider: 'anthropic' }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Lab API key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Demo request": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Start run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start run": {
+      "main": [
+        [
+          {
+            "node": "Reply with run id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply with run id": {
+      "main": [
+        [
+          {
+            "node": "Allowed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Allowed?": {
+      "main": [
+        [
+          {
+            "node": "Extract",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Extract": {
+      "main": [
+        [
+          {
+            "node": "Log extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log extract": {
+      "main": [
+        [
+          {
+            "node": "Check and record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check and record": {
+      "main": [
+        [
+          {
+            "node": "Log checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log checks": {
+      "main": [
+        [
+          {
+            "node": "Route decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route decision": {
+      "main": [
+        [
+          {
+            "node": "Finish: posted",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack: fraud hold",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack: approval needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack: fraud hold": {
+      "main": [
+        [
+          {
+            "node": "Finish: held",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack: approval needed": {
+      "main": [
+        [
+          {
+            "node": "Finish: held",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  }
+}
