@@ -34,7 +34,7 @@ services:
       - key: N8N_ENCRYPTION_KEY
         generateValue: true
       - key: WEBHOOK_URL
-        sync: false                     # set to the n8n service URL after first deploy
+        value: https://n8n-5ive.onrender.com/
       - key: GENERIC_TIMEZONE
         value: Africa/Accra
       - key: EXECUTIONS_DATA_PRUNE
