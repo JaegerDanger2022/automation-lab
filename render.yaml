@@ -1,0 +1,60 @@
+# Render Blueprint: n8n + Lab API, both on Render's free tier. $0 a month.
+# The database is Neon's free Postgres (permanent, 1 GB). Both services read its
+# connection details from variables entered in the Render dashboard.
+# Free services sleep after 15 minutes idle and take about a minute to wake.
+
+services:
+  - type: web
+    name: n8n
+    runtime: image
+    image:
+      url: docker.io/n8nio/n8n:latest
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: PORT
+        value: "5678"
+      - key: DB_TYPE
+        value: postgresdb
+      - key: DB_POSTGRESDB_SCHEMA
+        value: n8n                      # keeps n8n's tables apart from the Lab API's
+      - key: DB_POSTGRESDB_HOST
+        sync: false
+      - key: DB_POSTGRESDB_PORT
+        sync: false
+      - key: DB_POSTGRESDB_DATABASE
+        sync: false
+      - key: DB_POSTGRESDB_USER
+        sync: false
+      - key: DB_POSTGRESDB_PASSWORD
+        sync: false
+      - key: DB_POSTGRESDB_SSL_ENABLED
+        value: "true"                  # Neon requires SSL
+      - key: N8N_ENCRYPTION_KEY
+        generateValue: true
+      - key: WEBHOOK_URL
+        sync: false                     # set to the n8n service URL after first deploy
+      - key: GENERIC_TIMEZONE
+        value: Africa/Accra
+      - key: EXECUTIONS_DATA_PRUNE
+        value: "true"
+      - key: EXECUTIONS_DATA_MAX_AGE
+        value: "168"                    # keep one week of executions, the DB is 1 GB
+
+  - type: web
+    name: lab-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false                     # Neon connection string, ?sslmode=require
+      - key: LAB_API_KEY
+        generateValue: true
+      - key: VISITOR_SALT
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false                     # entered by Martin in the dashboard, never in code
+      - key: CLOSEDESK_MODEL
+        sync: false

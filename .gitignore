@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+evals/results/*_model.json
+.pytest_cache/
+data/closedesk/invoices/
+data/closedesk/seed.sql
+data/closedesk/labels.json
+db/migrations/003_closedesk_seed.sql
+evals/results/
