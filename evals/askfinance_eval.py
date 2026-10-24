@@ -58,7 +58,15 @@ def _col_match(gold_col, cand_col, tol, ordered):
     return True
 
 
+def _numbers(rows):
+    return [float(v) for r in rows for v in r if isinstance(v, (int, float))]
+
+
 def results_match(gold_cols, gold_rows, cols, rows, tol=0.005):
+    # One gold row of figures returned as one figure per row (or the reverse): compare the figures.
+    if len(gold_rows) != len(rows) and 1 in (len(gold_rows), len(rows)):
+        g, c = sorted(_numbers(gold_rows)), sorted(_numbers(rows))
+        return bool(g) and len(g) == len(c) and all(abs(a - b) <= max(abs(a) * tol, 0.011) for a, b in zip(g, c))
     if len(gold_rows) != len(rows):
         return False
     gt = list(zip(*gold_rows)) if gold_rows else [[] for _ in gold_cols]

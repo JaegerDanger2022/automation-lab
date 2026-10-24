@@ -62,7 +62,7 @@ CASES = [
      "gold": f"SELECT ROUND(SUM(CASE WHEN i.inv_dt BETWEEN DATE '2026-07-01' AND DATE '2026-09-30' THEN i.net_amt*i.fx_rt END),2) this_q1, "
              f"ROUND(SUM(CASE WHEN i.inv_dt BETWEEN DATE '2025-07-01' AND DATE '2025-09-30' THEN i.net_amt*i.fx_rt END),2) last_q1 FROM erp.arinv i WHERE {V}"},
     {"id": "t10", "cat": "time", "q": "How much did we invoice in the last 30 days?",
-     "gold": f"SELECT ROUND({REV},2) FROM erp.arinv i WHERE {V} AND i.inv_dt > DATE '2026-10-15' - 30 AND i.inv_dt <= DATE '2026-10-15'",
+     "gold": f"SELECT ROUND(SUM((i.net_amt + i.tax_amt) * i.fx_rt),2) FROM erp.arinv i WHERE {V} AND i.inv_dt > DATE '2026-10-15' - 30 AND i.inv_dt <= DATE '2026-10-15'",
      "tolerance": 0.04},
 
     # ---------- fx ----------
@@ -71,7 +71,7 @@ CASES = [
     {"id": "f2", "cat": "fx", "q": "What share of FY2026 revenue was billed in USD?",
      "gold": f"SELECT ROUND(100.0*SUM(CASE WHEN i.curr_cd='USD' THEN i.net_amt*i.fx_rt ELSE 0 END)/{REV},2) FROM erp.arinv i WHERE {V} AND {FY26}"},
     {"id": "f3", "cat": "fx", "q": "Total USD amount invoiced in FY2026, in dollars",
-     "gold": f"SELECT ROUND(SUM(i.net_amt),2) FROM erp.arinv i WHERE {V} AND {FY26} AND i.curr_cd = 'USD'"},
+     "gold": f"SELECT ROUND(SUM(i.net_amt + i.tax_amt),2) FROM erp.arinv i WHERE {V} AND {FY26} AND i.curr_cd = 'USD'"},
     {"id": "f4", "cat": "fx", "q": "Revenue from government customers in FY2026",
      "gold": f"SELECT ROUND({REV},2) FROM erp.arinv i JOIN erp.custmst c ON c.cust_cd=i.cust_cd WHERE {V} AND {FY26} AND c.seg_cd='GV'"},
     {"id": "f5", "cat": "fx", "q": "Collections from NGOs this fiscal year",
