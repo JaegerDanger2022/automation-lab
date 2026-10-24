@@ -10,7 +10,9 @@ from .rules import MasterData, POLine, PriorInvoice, PurchaseOrder, Vendor, norm
 from .schemas import CheckReport, ExtractedInvoice
 
 
-def load_master(conn) -> MasterData:
+def load_master(conn, demo: bool = False) -> MasterData:
+    """demo=True compares against seeded history only, so one visitor's run never
+    turns the next visitor's clean invoice into a duplicate."""
     vendors = [Vendor(id=r[0], name=r[1], bank_account=r[2], bank_name=r[3])
                for r in conn.execute("SELECT id, name, bank_account, bank_name FROM vendors")]
     pos: dict[str, PurchaseOrder] = {}
@@ -25,7 +27,8 @@ def load_master(conn) -> MasterData:
     prior = [PriorInvoice(vendor_id=r[0], invoice_number_norm=r[1] or "", invoice_date=r[2], total=r[3],
                           file_sha256=r[4])
              for r in conn.execute("SELECT vendor_id, invoice_number_norm, invoice_date, total, file_sha256 "
-                                   "FROM invoices WHERE status <> 'rejected'")]
+                                   "FROM invoices WHERE status <> 'rejected'"
+                                   + (" AND id::text IN (SELECT entity_id FROM audit_log WHERE actor = 'seed')" if demo else ""))]
     return MasterData(vendors=vendors, purchase_orders=pos, prior_invoices=prior)
 
 
@@ -93,3 +96,19 @@ def decide(conn, inv_id: str, decision: str, by: str, reason: str | None) -> str
 def audit(conn, entity: str, entity_id: str, action: str, actor: str, data: dict):
     conn.execute("INSERT INTO audit_log (entity, entity_id, action, actor, data) VALUES (%s,%s,%s,%s,%s)",
                  (entity, entity_id, action, actor, Jsonb(data)))
+
+
+HISTORY = (5, 10, 16)   # invoices already on the books before the demo starts (originals of the planted duplicates)
+
+
+def seed_history(conn, labels: list[dict]):
+    """Posts the original invoices that the planted duplicates copy. Runs once."""
+    from .extract import to_invoice
+    from .rules import run_checks
+    if conn.execute("SELECT 1 FROM audit_log WHERE actor = 'seed' LIMIT 1").fetchone():
+        return
+    for item in labels:
+        if item["order"] in HISTORY:
+            inv = to_invoice(dict(item["truth"], confidence={}))
+            report = run_checks(inv, load_master(conn))
+            save_invoice(conn, inv, report, file_sha256=None, run_id=None, actor="seed")

@@ -26,12 +26,35 @@ MAX_BYTES = 8 * 1024 * 1024
 PRICE_IN, PRICE_OUT = 0.10, 0.50
 
 
+DEMO_PICKS = [   # (order in labels.json, what a visitor should watch for)
+    (1, "Clean invoice. Should post straight to the ledger."),
+    (8, "Clean, but a phone photo. Read with vision."),
+    (41, "Bank account changed since the last invoice."),
+    (43, "Bank account changed, on a blurry scan."),
+    (44, "Resubmitted invoice, number written as 'INV 105'."),
+    (45, "Resubmitted invoice, number written as 'inv/00110'."),
+    (47, "Price billed 12% above the purchase order."),
+    (50, "Billed for more than the delivery note says arrived."),
+    (12, "Clean invoice, third layout."),
+]
+
+
+def labels() -> list[dict]:
+    return json.loads((SAMPLES.parent / "labels.json").read_text())
+
+
 @router.get("/samples")
 def samples():
-    """Public: the sample invoices the demo page offers."""
-    labels = json.loads((SAMPLES.parent / "labels.json").read_text())
-    picks = [l for l in labels if l["case"] != "clean"][:6] + [l for l in labels if l["case"] == "clean"][:6]
-    return [{"file": l["file"], "case": l["case"]} for l in picks]
+    """Public: the sample invoices the demo page offers, with what each one tests."""
+    by_order = {l["order"]: l for l in labels()}
+    out = []
+    for order, note in DEMO_PICKS:
+        l = by_order.get(order)
+        if l:
+            t = l["truth"]
+            out.append({"file": l["file"], "case": l["case"], "expected": l["expected_decision"], "note": note,
+                        "vendor": t["vendor_name"], "number": t["invoice_number"], "total": t["total"]})
+    return out
 
 
 @router.get("/samples/{name}")
@@ -40,6 +63,16 @@ def sample_file(name: str):
     if path.parent != SAMPLES.resolve() or not path.exists():
         raise HTTPException(404, "No such sample")
     return FileResponse(path)
+
+
+@router.get("/samples/{name}/preview")
+def sample_preview(name: str):
+    """Public: an image of the invoice for the demo page (PDFs are pre-rendered at build time)."""
+    path = (SAMPLES / name).resolve()
+    if path.parent != SAMPLES.resolve() or not path.exists():
+        raise HTTPException(404, "No such sample")
+    preview = path.with_name(path.stem + "_preview.png") if path.suffix == ".pdf" else path
+    return FileResponse(preview if preview.exists() else path)
 
 
 @router.post("/extract", dependencies=[Depends(require_key)])
@@ -88,6 +121,7 @@ class RecordBody(BaseModel):
     invoice: ExtractedInvoice
     file_sha256: str | None = None
     run_id: str | None = None
+    demo: bool = False          # compare against seeded history only
 
 
 @router.post("/record", dependencies=[Depends(require_key)])
@@ -96,7 +130,8 @@ def record(body: RecordBody):
     with pool().connection() as conn:
         conn.execute("SELECT pg_advisory_lock(42)")
         try:
-            report = run_checks(body.invoice, repo.load_master(conn), file_sha256=body.file_sha256)
+            report = run_checks(body.invoice, repo.load_master(conn, demo=body.demo),
+                                file_sha256=None if body.demo else body.file_sha256)
             inv_id = repo.save_invoice(conn, body.invoice, report, body.file_sha256, body.run_id)
         finally:
             conn.execute("SELECT pg_advisory_unlock(42)")
