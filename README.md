@@ -2,9 +2,11 @@
 
 Production-style AI automations, built on n8n with the heavy lifting in Python, all running on one shared platform. Each build solves a real business process end to end, is measured against a labelled test set, and can be tried live.
 
+**Try it:** [Close Desk live demo](https://lab-api-z3mx.onrender.com/). Free hosting, so the first run after a quiet spell takes up to a minute to wake.
+
 | Build | What it does | Status |
 | --- | --- | --- |
-| **Close Desk** | Invoices to the ledger with three-way matching and fraud checks | Code and tests done, deploy pending |
+| **Close Desk** | Invoices to the ledger with three-way matching and fraud checks | [Live](https://lab-api-z3mx.onrender.com/) |
 | Speed-to-Lead | Researched reply and CRM record within 2 minutes of a new lead | Planned |
 | Fintech Support Desk | WhatsApp and web support agent with a public eval report | Planned |
 | FleetPulse | Trotro fleet run from drivers' voice notes in Twi and English | Planned |
