@@ -5,7 +5,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils &
 RUN pip install --no-cache-dir reportlab pillow numpy
 WORKDIR /gen
 COPY data/closedesk/generate.py .
-RUN python generate.py
+RUN python generate.py \
+    && for f in invoices/*.pdf; do pdftoppm -png -r 90 -singlefile "$f" "${f%.pdf}_preview"; done
 
 # Stage 2: the API
 FROM python:3.12-slim
