@@ -8,3 +8,5 @@ data/closedesk/seed.sql
 data/closedesk/labels.json
 db/migrations/003_closedesk_seed.sql
 evals/results/
+data/finance/erp_seed.sql
+db/migrations/005_erp_seed.sql
