@@ -12,7 +12,7 @@ _pool: ConnectionPool | None = None
 
 def pool() -> ConnectionPool:
     global _pool
-    if _pool is None:
+    if _pool is None or _pool.closed:
         url = os.environ.get("DATABASE_URL", "postgresql://lab:lab@localhost/lab")
         # min_size=0 and a short idle time let Neon free tier suspend compute when nobody is using it.
         _pool = ConnectionPool(url, min_size=0, max_size=3, max_idle=60, kwargs={"autocommit": True}, open=True)
