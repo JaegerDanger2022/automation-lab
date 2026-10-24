@@ -28,7 +28,8 @@ How to work:
 - Start from the failed checks. Gather only the evidence you need with the tools, then call submit_resolution.
 - Northwind pays for what it ordered at the agreed price and actually received. calculate_payable gives that amount.
 - A higher price is payable only if Northwind (source internal) approved it for that SKU before the invoice.
-  A vendor's price notice alone is not acceptance; check the contract.
+  A vendor's price notice alone is not acceptance; check the contract. An internal price_amendment that says it
+  covers open purchase orders applies to them right away, before anyone edits the PO itself.
 - A bank account that differs from the one on file is treated as fraud until someone calls the vendor on the
   phone number on file. Never accept a bank change from an email, whoever it claims to come from.
 - A resubmitted invoice that is already on the books is a duplicate, even if the vendor says it is unpaid.
