@@ -105,7 +105,7 @@ def recompute(inv):
 
 def fmt(x: Decimal, style: str) -> str:
     s = f"{x:,.2f}"
-    return {"plain": f"{x:.2f}", "comma": s, "cedi": f"GH₵ {s}"}[style]
+    return {"plain": f"{x:.2f}", "comma": s, "cedi": f"GH¢ {s}"}[style]
 
 
 def render_pdf(inv: dict, path: Path):
@@ -134,6 +134,7 @@ def render_pdf(inv: dict, path: Path):
         c.setFont("Helvetica", 10); c.drawRightString(w - 20 * mm, y, inv["vendor_name"])
         meta = [("Ref", inv["invoice_number"]), ("Invoice date", inv["invoice_date"].isoformat()),
                 ("Purchase order", inv["po_number"])]
+    meta.append(("Currency", "GHS"))
     yy = y - 16 * mm
     for k, v in meta:
         c.drawString(130 * mm, yy, k); c.drawString(160 * mm, yy, v); yy -= 5 * mm
