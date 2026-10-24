@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask Finance · Automation Lab</title>
+<meta name="description" content="Ask a messy ERP questions in plain English. Checked, read-only SQL, a business semantic layer and a public eval score. A live demo by Martin Mensah-Solomon.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f5f2; --panel:#ffffff; --ink:#16181d; --muted:#5d6370; --line:#e3e1db; --soft:#efeee9;
+  --accent:#1f5eff; --ok:#11804a; --ok-bg:#e6f4ec; --warn:#a15c00; --warn-bg:#fdf1de; --bad:#c0262d; --bad-bg:#fbe7e8;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1115; --panel:#171a20; --ink:#eceef2; --muted:#9aa1ad; --line:#2a2f38; --soft:#1e222a;
+  --accent:#6f9bff; --ok:#4cc38a; --ok-bg:#13291f; --warn:#f0b04f; --warn-bg:#2d2311; --bad:#ff6b6f; --bad-bg:#331719;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Inter,system-ui,sans-serif}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+header.top{border-bottom:1px solid var(--line);background:var(--panel)}
+header.top .wrap{display:flex;align-items:center;gap:14px;height:56px}
+.brand{font-weight:700} .brand span{color:var(--muted);font-weight:500}
+.top nav{margin-left:auto;display:flex;gap:18px;font-size:14px}
+.hero{padding:44px 0 18px}
+.hero h1{font-size:38px;line-height:1.1;margin:0 0 10px;letter-spacing:-.02em}
+.hero p{margin:0;color:var(--muted);max-width:740px;font-size:17px}
+.facts{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.fact{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--muted)}
+.fact b{color:var(--ink);font-weight:600}
+.wake{margin:18px 0 0;padding:10px 14px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-size:14px;display:none}
+.wake.show{display:block}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0;padding:14px 16px;border-bottom:1px solid var(--line);font-weight:600}
+.askbox{margin:26px 0 20px;padding:16px}
+.askrow{display:flex;gap:10px}
+.askrow input{flex:1;font:16px Inter,system-ui;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);min-width:0}
+.askrow input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+button.run{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 20px;font:600 15px Inter,system-ui;cursor:pointer;white-space:nowrap}
+button.run:disabled{opacity:.5;cursor:default}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{background:var(--soft);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:5px 11px;font:13px Inter,system-ui;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.chip.trap{border-style:dashed}
+.hint{color:var(--muted);font-size:13px;margin-top:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:26px}
+.steps{list-style:none;margin:0;padding:8px 16px 16px}
+.step{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:11px 0;border-bottom:1px dashed var(--line)}
+.step:last-child{border-bottom:0}
+.dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.step.active .dot{border-color:var(--accent);border-top-color:transparent;animation:spin .9s linear infinite}
+.step.ok .dot{border-color:var(--ok);background:var(--ok);color:#fff}
+.step.warn .dot{border-color:var(--warn);background:var(--warn);color:#fff}
+.step.bad .dot{border-color:var(--bad);background:var(--bad);color:#fff}
+@keyframes spin{to{transform:rotate(360deg)}}
+.step h3{margin:0;font-size:14.5px}
+.step .meta{color:var(--muted);font-size:13px;margin-top:2px}
+pre.sql{font-family:var(--mono);font-size:12px;background:var(--soft);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word;margin:8px 0 0;max-height:260px;overflow:auto}
+.errs{margin:6px 0 0;padding-left:18px;color:var(--bad);font-size:13px}
+.answer{padding:16px;font-size:16px;line-height:1.5}
+.answer .status{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.assume{color:var(--muted);font-size:13px;margin-top:8px}
+.assume li{margin:2px 0}
+.tablewrap{overflow:auto;max-height:340px;margin:0 16px 16px;border:1px solid var(--line);border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:var(--panel)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.chart{padding:0 16px 8px}
+.chart svg{width:100%;height:auto;display:block}
+.empty{color:var(--muted);padding:18px 16px;font-size:14px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:40px}
+.prose{padding:14px 16px;font-size:14px}
+.prose ul{padding-left:18px;margin:6px 0}
+.prose li{margin:5px 0}
+.evtable td,.evtable th{white-space:normal}
+.bar{height:6px;border-radius:3px;background:var(--soft);overflow:hidden;margin-top:3px}
+.bar i{display:block;height:100%;background:var(--ok)}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--muted);font-size:13px}
+@media (max-width:900px){.grid,.three{grid-template-columns:1fr}.hero h1{font-size:30px}}
+@media (max-width:560px){.brand span{display:none}.top nav{gap:12px;font-size:13px}.askrow{flex-direction:column}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="brand">Automation Lab <span>/ Ask Finance</span></div>
+  <nav>
+    <a href="/closedesk">Close Desk</a>
+    <a href="#how">How it works</a>
+    <a href="https://github.com/JaegerDanger2022/automation-lab" target="_blank" rel="noopener">Code</a>
+  </nav>
+</div></header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Ask the ERP in plain English.</h1>
+    <p>Finance teams wait days for someone to write a report. Here a manager asks a question and gets the number, the SQL behind it and a chart in seconds, from a deliberately messy ERP: voided invoices, mixed currencies, a July fiscal year and duplicate customers.</p>
+    <div class="facts" id="facts">
+      <div class="fact"><b>Read-only</b> by design, checked before it runs</div>
+      <div class="fact"><b>62</b> test questions, including traps and attacks</div>
+      <div class="fact" id="evalFact">Eval score loading…</div>
+    </div>
+    <div class="wake" id="wake">Waking the servers. They run on free hosting and sleep when idle, so the first question can take up to a minute.</div>
+  </section>
+
+  <section class="panel askbox">
+    <div class="askrow">
+      <input id="q" maxlength="300" placeholder="e.g. Which customers are over their credit limit?" autocomplete="off">
+      <button class="run" id="ask">Ask</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="hint">Data is fictional, as of 15 October 2026. Each visitor gets 5 questions a day.</div>
+  </section>
+
+  <section class="grid" id="out" hidden>
+    <div class="panel">
+      <h2>What happened <span id="runId" style="font-family:var(--mono);text-transform:none;letter-spacing:0;font-weight:400"></span></h2>
+      <ol class="steps" id="steps"></ol>
+    </div>
+    <div class="panel" id="resultPanel">
+      <h2>Answer</h2>
+      <div id="result"><div class="empty">Working…</div></div>
+    </div>
+  </section>
+
+  <section class="three" id="how">
+    <div class="panel">
+      <h2>1. Business definitions</h2>
+      <div class="prose">
+        <p style="margin-top:0">A semantic layer written once and used on every question. It covers what the model would otherwise get quietly wrong:</p>
+        <ul>
+          <li>Voided and deleted invoices don't count</li>
+          <li>USD invoices are converted at the invoice-date rate</li>
+          <li>"This year" means the fiscal year starting 1 July</li>
+          <li>Outstanding = invoice total minus what was allocated to it</li>
+          <li>Sales by branch use the selling branch</li>
+        </ul>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>2. A guard, then read-only</h2>
+      <div class="prose">
+        <ul style="margin-top:0">
+          <li><b>Parse:</b> one SELECT, only ERP tables, no dangerous functions</li>
+          <li><b>Business lint:</b> rejects queries that count voids, mix currencies or use the server clock</li>
+          <li><b>Repair:</b> the error goes back to the model, twice, then a stronger fallback model tries once</li>
+          <li><b>Run:</b> inside a READ ONLY transaction with a 5 second timeout and a row cap</li>
+        </ul>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>3. Measured</h2>
+      <div class="prose" id="evalBox"><p style="margin:0" class="hint">Loading the latest eval run…</p></div>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap">Built by <a href="https://martins-portfolio.click" target="_blank" rel="noopener">Martin Mensah-Solomon</a>. Part of the Automation Lab: production-style AI automations with evals, logs and limits.</div></footer>
+
+<script>
+const API = location.origin;
+const WEBHOOK = 'https://flows.martins-portfolio.click/webhook/askfinance-demo';
+const CAT = {basic:'Basic metrics', time:'Fiscal time', fx:'Currencies', trap:'Data traps', join:'Breakdowns', ar:'Receivables',
+             margin:'Margin and products', clarify:'Asks back when unclear', refuse:'Declines and attacks'};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let busy = false;
+
+function fmt(v){
+  if (typeof v === 'number') return Math.abs(v) >= 1000 ? v.toLocaleString('en-US', {maximumFractionDigits: 2}) : String(v);
+  return esc(v);
+}
+
+async function init(){
+  const t = setTimeout(() => $('#wake').classList.add('show'), 2500);
+  fetch(WEBHOOK.replace('/webhook/askfinance-demo', '/healthz'), {mode:'no-cors'}).catch(()=>{});
+  try {
+    const ex = await (await fetch(API + '/v1/askfinance/examples')).json();
+    $('#chips').innerHTML = ex.map(e => `<button class="chip${/ignore|delete/i.test(e) ? ' trap' : ''}">${esc(e)}</button>`).join('');
+    document.querySelectorAll('.chip').forEach(c => c.onclick = () => { $('#q').value = c.textContent; ask(); });
+  } catch (e) {}
+  clearTimeout(t); $('#wake').classList.remove('show');
+  loadEval();
+}
+
+async function loadEval(){
+  try {
+    const e = await (await fetch(API + '/v1/askfinance/eval')).json();
+    const s = e.summary;
+    if (!s || s.running || s.error) { $('#evalFact').innerHTML = 'Eval run <b>pending</b>'; $('#evalBox').innerHTML = '<p class="hint" style="margin:0">The live eval has not been published yet.</p>'; return; }
+    $('#evalFact').innerHTML = `<b>${s.correct}/${s.cases}</b> correct on the live eval`;
+    const rows = Object.entries(s.by_category).map(([k, v]) => {
+      const [a, b] = v.split('/').map(Number);
+      return `<tr><td>${CAT[k]||k}<div class="bar"><i style="width:${100*a/b}%"></i></div></td><td class="num">${v}</td></tr>`;
+    }).join('');
+    $('#evalBox').innerHTML = `<p style="margin-top:0">${s.cases} questions with hand-written gold SQL, run on the live system. An answer counts only if its numbers match the gold result.</p>
+      <table class="evtable"><tbody>${rows}</tbody></table>
+      <p class="hint">Model ${esc(s.model)}, fallback ${esc(s.fallback)}. Whole run cost $${Number(s.cost_usd).toFixed(2)}, median ${s.median_seconds}s per question.</p>`;
+  } catch (e) {}
+}
+
+function step(id, title, meta=''){
+  let el = document.getElementById('s-' + id);
+  if (!el) { el = document.createElement('li'); el.className = 'step'; el.id = 's-' + id; $('#steps').appendChild(el); }
+  el.innerHTML = `<div class="dot"></div><div><h3>${title}</h3><div class="meta">${meta}</div><div class="body"></div></div>`;
+  return el;
+}
+function setState(el, state, mark){ el.className = 'step ' + state; el.querySelector('.dot').textContent = mark || ''; }
+
+async function ask(){
+  const question = $('#q').value.trim();
+  if (!question || busy) return;
+  busy = true; $('#ask').disabled = true;
+  $('#out').hidden = false; $('#steps').innerHTML = ''; $('#runId').textContent = '';
+  $('#result').innerHTML = '<div class="empty">Working…</div>';
+  $('#out').scrollIntoView({behavior:'smooth', block:'start'});
+  const s1 = step('recv', 'Received by n8n', 'Run opened, daily limit and budget checked'); setState(s1, 'active');
+  let start;
+  try {
+    const r = await fetch(WEBHOOK, {method:'POST', body: new URLSearchParams({question})});
+    start = await r.json();
+  } catch (e) {
+    setState(s1, 'bad', '!'); s1.querySelector('.body').innerHTML = '<p class="errs">Could not reach n8n. It may still be waking up, try again in a minute.</p>';
+    return done();
+  }
+  if (!start.run_id) {
+    setState(s1, 'bad', '!'); s1.querySelector('.body').innerHTML = `<p class="errs">${esc(start.detail || start.message || 'The question was refused.')}</p>`;
+    $('#result').innerHTML = `<div class="empty">${esc(start.detail || 'Try again later.')}</div>`;
+    return done();
+  }
+  setState(s1, 'ok', '✓'); $('#runId').textContent = start.run_id.slice(0, 8);
+  setState(step('think', 'Planning the query', 'Claude reads the question against the business definitions'), 'active');
+  const t0 = Date.now(); let run = null;
+  while (Date.now() - t0 < 150000) {
+    await new Promise(r => setTimeout(r, 1500));
+    try { run = await (await fetch(API + '/v1/runs/' + start.run_id)).json(); } catch (e) { continue; }
+    if (run.status && run.status !== 'running') break;
+  }
+  if (!run || run.status === 'running') {
+    setState(document.getElementById('s-think'), 'bad', '!');
+    $('#result').innerHTML = '<div class="empty">This is taking longer than expected. Try again in a moment.</div>';
+    return done();
+  }
+  render(run);
+  done();
+}
+
+function render(run){
+  document.getElementById('s-think')?.remove();
+  let n = 0;
+  for (const s of run.steps) {
+    const d = s.detail || {};
+    n++;
+    if (s.name === 'Plan') {
+      const el = step('p' + n, 'Planned', d.action === 'sql' ? 'Will answer with a query' : d.action === 'clarify' ? 'Needs one more detail' : 'Out of scope');
+      setState(el, 'ok', '✓');
+      if ((d.assumptions || []).length) el.querySelector('.body').innerHTML = `<ul class="assume">${d.assumptions.map(a => `<li>${esc(a)}</li>`).join('')}</ul>`;
+    } else if (s.name === 'Guard') {
+      const el = step('g' + n, s.status === 'ok' ? 'Guard passed' : 'Guard rejected the query', (d.tables || []).length ? 'Tables: ' + d.tables.join(', ') : '');
+      setState(el, s.status === 'ok' ? 'ok' : 'bad', s.status === 'ok' ? '✓' : '✕');
+      el.querySelector('.body').innerHTML = `<pre class="sql">${esc(d.sql)}</pre>` + ((d.errors || []).length ? `<ul class="errs">${d.errors.map(e => `<li>${esc(e)}</li>`).join('')}</ul>` : '');
+    } else if (s.name === 'Repair') {
+      setState(step('r' + n, 'Sent back to fix', d.model ? `Attempt ${d.attempt} · ${d.model}` : ''), 'warn', '↻');
+    } else if (s.name === 'Run') {
+      const el = step('x' + n, s.status === 'ok' ? 'Ran read-only' : 'Database error', s.status === 'ok' ? `${d.rows} rows in ${s.duration_ms} ms` : '');
+      setState(el, s.status === 'ok' ? 'ok' : 'bad', s.status === 'ok' ? '✓' : '✕');
+      if (d.error) el.querySelector('.body').innerHTML = `<p class="errs">${esc(d.error)}</p>`;
+    }
+  }
+  const res = (run.steps.find(s => s.name === 'Result') || {}).detail;
+  if (!res) {
+    $('#result').innerHTML = `<div class="answer"><div class="status" style="color:var(--bad)">Failed</div>${esc(run.error || 'Something went wrong.')}</div>`;
+    return;
+  }
+  const label = {answered:['Answer','var(--ok)'], clarify:['Needs one more detail','var(--warn)'], refused:['Declined','var(--warn)'], failed:['Could not answer','var(--bad)']}[res.status] || ['', 'var(--muted)'];
+  let html = `<div class="answer"><div class="status" style="color:${label[1]}">${label[0]}</div>${esc(res.answer)}
+    <div class="hint">Cost $${Number(res.cost_usd || 0).toFixed(4)} · ${esc(res.model)}</div></div>`;
+  if (res.columns && res.columns.length && res.rows.length) {
+    html += chart(res);
+    html += `<div class="tablewrap"><table><thead><tr>${res.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>` +
+      res.rows.map(r => `<tr>${r.map(v => `<td class="${typeof v === 'number' ? 'num' : ''}">${fmt(v)}</td>`).join('')}</tr>`).join('') + '</tbody></table></div>';
+  }
+  $('#result').innerHTML = html;
+}
+
+function chart(res){
+  const rows = res.rows, cols = res.columns;
+  if (rows.length < 2 || rows.length > 24 || res.chart === 'none') return '';
+  const ni = cols.findIndex((_, i) => rows.every(r => typeof r[i] === 'number') && i > 0);
+  if (ni < 0) return '';
+  const li = cols.findIndex((_, i) => i !== ni && rows.every(r => typeof r[i] !== 'number'));
+  const labels = rows.map(r => String(li >= 0 ? r[li] : '').slice(0, 14)), vals = rows.map(r => r[ni]);
+  const W = 520, H = 220, P = 34, max = Math.max(...vals, 0), min = Math.min(...vals, 0), span = (max - min) || 1;
+  const x = i => P + i * (W - P - 10) / Math.max(1, vals.length - (res.chart === 'line' ? 1 : 0));
+  const y = v => 10 + (max - v) / span * (H - 50);
+  const css = getComputedStyle(document.documentElement), acc = css.getPropertyValue('--accent'), mut = css.getPropertyValue('--muted'), line = css.getPropertyValue('--line');
+  let g = `<line x1="${P}" y1="${y(0)}" x2="${W - 10}" y2="${y(0)}" stroke="${line}"/>`;
+  if (res.chart === 'line') {
+    g += `<polyline fill="none" stroke="${acc}" stroke-width="2.5" points="${vals.map((v, i) => `${x(i)},${y(v)}`).join(' ')}"/>`;
+    g += vals.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="3" fill="${acc}"><title>${labels[i]}: ${fmt(v)}</title></circle>`).join('');
+  } else {
+    const bw = (W - P - 10) / vals.length * 0.7;
+    g += vals.map((v, i) => `<rect x="${x(i) + bw * 0.2}" y="${Math.min(y(v), y(0))}" width="${bw}" height="${Math.abs(y(0) - y(v))}" rx="3" fill="${acc}"><title>${labels[i]}: ${fmt(v)}</title></rect>`).join('');
+  }
+  const step = Math.ceil(labels.length / 8);
+  g += labels.map((l, i) => i % step ? '' : `<text x="${x(i) + (res.chart === 'line' ? 0 : (W - P - 10) / vals.length * 0.35)}" y="${H - 22}" font-size="10" fill="${mut}" text-anchor="middle">${esc(l)}</text>`).join('');
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H - 10}" role="img" aria-label="Chart of ${esc(cols[ni])}">${g}</svg></div>`;
+}
+
+function done(){ busy = false; $('#ask').disabled = false; }
+$('#ask').onclick = ask;
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') ask(); });
+init();
+</script>
+</body>
+</html>
