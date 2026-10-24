@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from .closedesk import repo as closedesk_repo
 from .closedesk.api import labels as closedesk_labels
 from .closedesk.api import router as closedesk_router
+from .askfinance.api import router as askfinance_router
 from .db import migrate, pool
 from .platform.api import router as platform_router
 
@@ -34,6 +35,7 @@ app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ORIGINS", 
                    allow_methods=["GET", "POST"], allow_headers=["*"])
 app.include_router(platform_router)
 app.include_router(closedesk_router)
+app.include_router(askfinance_router)
 
 
 @app.get("/health")
@@ -49,3 +51,8 @@ WEB = Path(__file__).resolve().parent / "web"
 @app.get("/closedesk", include_in_schema=False)
 def closedesk_page():
     return FileResponse(WEB / "closedesk.html")
+
+
+@app.get("/askfinance", include_in_schema=False)
+def askfinance_page():
+    return FileResponse(WEB / "askfinance.html")
