@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exceptions Agent · Automation Lab</title>
+<meta name="description" content="An AI agent works held invoices: reads the PO, deliveries and vendor emails, proposes a fix and drafts the email. Hard limits in code, human approval, public eval. A live demo by Martin Mensah-Solomon.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f5f2; --panel:#ffffff; --ink:#16181d; --muted:#5d6370; --line:#e3e1db; --soft:#efeee9;
+  --accent:#1f5eff; --ok:#11804a; --ok-bg:#e6f4ec; --warn:#a15c00; --warn-bg:#fdf1de; --bad:#c0262d; --bad-bg:#fbe7e8;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1115; --panel:#171a20; --ink:#eceef2; --muted:#9aa1ad; --line:#2a2f38; --soft:#1e222a;
+  --accent:#6f9bff; --ok:#4cc38a; --ok-bg:#13291f; --warn:#f0b04f; --warn-bg:#2d2311; --bad:#ff6b6f; --bad-bg:#331719;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Inter,system-ui,sans-serif}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+header.top{border-bottom:1px solid var(--line);background:var(--panel)}
+header.top .wrap{display:flex;align-items:center;gap:14px;height:56px}
+.brand{font-weight:700} .brand span{color:var(--muted);font-weight:500}
+.top nav{margin-left:auto;display:flex;gap:18px;font-size:14px}
+.hero{padding:44px 0 18px}
+.hero h1{font-size:38px;line-height:1.1;margin:0 0 10px;letter-spacing:-.02em}
+.hero p{margin:0;color:var(--muted);max-width:740px;font-size:17px}
+.facts{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.fact{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--muted)}
+.fact b{color:var(--ink);font-weight:600}
+.wake{margin:18px 0 0;padding:10px 14px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-size:14px;display:none}
+.wake.show{display:block}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0;padding:14px 16px;border-bottom:1px solid var(--line);font-weight:600}
+.askbox{margin:26px 0 20px;padding:16px}
+.askrow{display:flex;gap:10px}
+.askrow input{flex:1;font:16px Inter,system-ui;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);min-width:0}
+.askrow input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+button.run{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 20px;font:600 15px Inter,system-ui;cursor:pointer;white-space:nowrap}
+button.run:disabled{opacity:.5;cursor:default}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{background:var(--soft);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:5px 11px;font:13px Inter,system-ui;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.chip.trap{border-style:dashed}
+.hint{color:var(--muted);font-size:13px;margin-top:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:26px}
+.steps{list-style:none;margin:0;padding:8px 16px 16px}
+.step{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:11px 0;border-bottom:1px dashed var(--line)}
+.step:last-child{border-bottom:0}
+.dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.step.active .dot{border-color:var(--accent);border-top-color:transparent;animation:spin .9s linear infinite}
+.step.ok .dot{border-color:var(--ok);background:var(--ok);color:#fff}
+.step.warn .dot{border-color:var(--warn);background:var(--warn);color:#fff}
+.step.bad .dot{border-color:var(--bad);background:var(--bad);color:#fff}
+@keyframes spin{to{transform:rotate(360deg)}}
+.step h3{margin:0;font-size:14.5px}
+.step .meta{color:var(--muted);font-size:13px;margin-top:2px}
+pre.sql{font-family:var(--mono);font-size:12px;background:var(--soft);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word;margin:8px 0 0;max-height:260px;overflow:auto}
+.errs{margin:6px 0 0;padding-left:18px;color:var(--bad);font-size:13px}
+.answer{padding:16px;font-size:16px;line-height:1.5}
+.answer .status{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.assume{color:var(--muted);font-size:13px;margin-top:8px}
+.assume li{margin:2px 0}
+.tablewrap{overflow:auto;max-height:340px;margin:0 16px 16px;border:1px solid var(--line);border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:var(--panel)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.chart{padding:0 16px 8px}
+.chart svg{width:100%;height:auto;display:block}
+.empty{color:var(--muted);padding:18px 16px;font-size:14px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:40px}
+.prose{padding:14px 16px;font-size:14px}
+.prose ul{padding-left:18px;margin:6px 0}
+.prose li{margin:5px 0}
+.evtable td,.evtable th{white-space:normal}
+.bar{height:6px;border-radius:3px;background:var(--soft);overflow:hidden;margin-top:3px}
+.bar i{display:block;height:100%;background:var(--ok)}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--muted);font-size:13px}
+@media (max-width:900px){.grid,.three{grid-template-columns:1fr}.hero h1{font-size:30px}}
+@media (max-width:560px){.brand span{display:none}.top nav{gap:12px;font-size:13px}.askrow{flex-direction:column}}
+  [hidden] { display: none !important; }
+.cases{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px}
+.case{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.case:hover{border-color:var(--accent)}
+.case:disabled{opacity:.5;cursor:default}
+.case .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.case .v{font-weight:600;margin-top:4px}
+.case .n{color:var(--muted);font-size:13px;margin-top:2px}
+.case .t{font-size:13.5px;margin-top:8px}
+.badge{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:999px}
+.b-ok{background:var(--ok-bg);color:var(--ok)} .b-warn{background:var(--warn-bg);color:var(--warn)} .b-bad{background:var(--bad-bg);color:var(--bad)}
+.prop{padding:16px}
+.prop .sum{font-size:15.5px;margin:10px 0}
+.money{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0;font-size:14px}
+.money div{background:var(--soft);border-radius:8px;padding:8px 12px}
+.money b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
+.sec{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:16px 0 6px}
+.ev{margin:0;padding-left:18px;font-size:13.5px}
+.ev li{margin:3px 0}
+.mail{border:1px solid var(--line);border-radius:10px;font-size:13.5px;overflow:hidden}
+.mail .h{background:var(--soft);padding:8px 12px;color:var(--muted)}
+.mail .h b{color:var(--ink);font-weight:600}
+.mail .b{padding:10px 12px;white-space:pre-wrap}
+.decide{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;align-items:center}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 18px;font:600 15px Inter,system-ui;cursor:pointer}
+.outcome{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--ok-bg);color:var(--ok);font-size:14px}
+.outcome.n{background:var(--soft);color:var(--ink)}
+.blocked{margin:6px 0 0;padding-left:18px;color:var(--bad);font-size:13px}
+main,.grid>.panel,.step>div{min-width:0}
+.assume li,.blocked li,.ev li,.mail .b,.sum{overflow-wrap:anywhere}
+@media (max-width:900px){.cases{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.cases{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="brand">Automation Lab <span>/ Exceptions agent</span></div>
+  <nav>
+    <a href="/closedesk">Close Desk</a>
+    <a href="/askfinance">Ask Finance</a>
+    <a href="https://github.com/JaegerDanger2022/automation-lab" target="_blank" rel="noopener">Code</a>
+  </nav>
+</div></header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Held invoices, worked by an agent. Signed off by a person.</h1>
+    <p>Close Desk holds the invoices that fail its checks. This agent picks one up, reads the purchase order, the delivery notes, the vendor record and every email on file, then proposes what to do and drafts the vendor email. Nothing is paid, posted or sent until you approve.</p>
+    <div class="facts">
+      <div class="fact"><b>Read-only</b> tools, no way to pay or send</div>
+      <div class="fact"><b>Hard limits</b> checked in code after every proposal</div>
+      <div class="fact" id="evalFact">Eval score loading…</div>
+    </div>
+    <div class="wake" id="wake">Waking the servers. They run on free hosting and sleep when idle, so the first case can take up to a minute.</div>
+  </section>
+
+  <section class="panel" style="margin:26px 0 20px">
+    <h2>Pick a held invoice</h2>
+    <div class="cases" id="cases"><div class="empty">Loading cases…</div></div>
+    <div class="hint" style="padding:0 16px 14px">Fictional vendors and documents. Some emails on file are phishing, and one talks directly to "automated systems". Each visitor gets 5 cases a day.</div>
+  </section>
+
+  <section class="grid" id="out" hidden>
+    <div class="panel">
+      <h2>What the agent did <span id="runId" style="font-family:var(--mono);text-transform:none;letter-spacing:0;font-weight:400"></span></h2>
+      <ol class="steps" id="steps"></ol>
+    </div>
+    <div class="panel">
+      <h2>Proposal for approval</h2>
+      <div id="result"><div class="empty">Working…</div></div>
+    </div>
+  </section>
+
+  <section class="three" id="how">
+    <div class="panel">
+      <h2>1. Tools that only read</h2>
+      <div class="prose"><ul style="margin-top:0">
+        <li>Purchase order, delivery notes, vendor record</li>
+        <li>Emails, contract terms and internal approvals on file</li>
+        <li>The vendor's other invoices on the books</li>
+        <li>A payable calculator: agreed price, received quantity, tax</li>
+        <li>At most 8 tool calls, then it must submit</li>
+      </ul></div>
+    </div>
+    <div class="panel">
+      <h2>2. Limits in code, not the prompt</h2>
+      <div class="prose"><ul style="margin-top:0">
+        <li>A bank change can only be escalated for a phone call, never settled by email</li>
+        <li>Paying above PO or received needs a Northwind document the agent actually opened</li>
+        <li>Adjusted amounts must match the calculator to the cent</li>
+        <li>Emails go to the address on file, never with account numbers</li>
+        <li>One chance to fix a blocked proposal, then a person takes over</li>
+      </ul></div>
+    </div>
+    <div class="panel">
+      <h2>3. Measured</h2>
+      <div class="prose" id="evalBox"><p style="margin:0" class="hint">Loading the latest eval run…</p></div>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap">Built by <a href="https://martins-portfolio.click" target="_blank" rel="noopener">Martin Mensah-Solomon</a>. Part of the Automation Lab: production-style AI automations with evals, logs and limits.</div></footer>
+
+<script>
+const API = location.origin;
+const N8N = 'https://flows.martins-portfolio.click/webhook/';
+const KIND = {bank_changed:['Bank change','b-bad'], duplicate:['Duplicate','b-bad'], price_above_po:['Price above PO','b-warn'], qty_above_received:['Over-billed quantity','b-warn']};
+const ACTION = {approve:['Pay as billed','b-ok'], approve_adjusted:['Pay adjusted amount','b-ok'], reject_duplicate:['Reject as duplicate','b-bad'],
+                escalate_fraud:['Escalate to fraud review','b-bad'], hold_for_info:['Hold for information','b-warn']};
+const TOOLNAME = {get_purchase_order:'Read the purchase order', get_deliveries:'Checked what was delivered', get_vendor:'Read the vendor record',
+                  get_vendor_documents:'Read documents on file', get_related_invoices:"Checked the vendor's other invoices", calculate_payable:'Calculated what is owed'};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ghs = v => 'GHS ' + Number(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+let busy = false;
+
+async function init(){
+  const t = setTimeout(() => $('#wake').classList.add('show'), 2500);
+  fetch(N8N.replace('/webhook/', '/healthz'), {mode:'no-cors'}).catch(()=>{});
+  try {
+    const cs = await (await fetch(API + '/v1/exceptions/cases')).json();
+    $('#cases').innerHTML = cs.map(c => `<button class="case" data-case="${c.case}"><span class="k badge ${KIND[c.kind][1]}">${KIND[c.kind][0]}</span>
+      <div class="v">${esc(c.vendor)}</div><div class="n">${esc(c.number)} · ${ghs(c.total)}</div><div class="t">${esc(c.note)}</div></button>`).join('');
+    document.querySelectorAll('.case').forEach(b => b.onclick = () => work(+b.dataset.case));
+  } catch (e) { $('#cases').innerHTML = '<div class="empty">Could not load the cases. Refresh in a minute.</div>'; }
+  clearTimeout(t); $('#wake').classList.remove('show');
+  loadEval();
+}
+
+async function loadEval(){
+  try {
+    const e = await (await fetch(API + '/v1/exceptions/eval')).json();
+    const s = e.summary;
+    if (!s || s.running || s.error) { $('#evalFact').innerHTML = 'Eval run <b>pending</b>'; $('#evalBox').innerHTML = '<p class="hint" style="margin:0">The live eval has not been published yet.</p>'; return; }
+    $('#evalFact').innerHTML = `<b>${s.correct}/${s.cases}</b> correct on the live eval`;
+    $('#evalBox').innerHTML = `<p style="margin-top:0">All ${s.cases} planted problem invoices, each run through the agent on a fresh copy. A case counts only if the action is right, the amount is right to the cent and policy didn't have to take over.</p>
+      <table class="evtable"><tbody>${e.rows.map(r => `<tr><td>${esc(r.what)}</td><td>${r.correct ? '✓' : '✕'}</td></tr>`).join('')}</tbody></table>
+      <p class="hint">Fraud cases escalated: ${s.fraud_cases_escalated}. Proposals blocked by policy: ${s.policy_blocks}. Model ${esc(s.model)}, whole run $${Number(s.cost_usd).toFixed(2)}, median ${s.median_seconds}s per case.</p>`;
+  } catch (e) {}
+}
+
+function step(id, title, meta=''){
+  let el = document.getElementById('s-' + id);
+  if (!el) { el = document.createElement('li'); el.className = 'step'; el.id = 's-' + id; $('#steps').appendChild(el); }
+  el.innerHTML = `<div class="dot"></div><div><h3>${title}</h3><div class="meta">${meta}</div><div class="body"></div></div>`;
+  return el;
+}
+function setState(el, state, mark){ el.className = 'step ' + state; el.querySelector('.dot').textContent = mark || ''; }
+function lock(on){ busy = on; document.querySelectorAll('.case').forEach(b => b.disabled = on); }
+
+async function work(n){
+  if (busy) return;
+  lock(true);
+  $('#out').hidden = false; $('#steps').innerHTML = ''; $('#runId').textContent = '';
+  $('#result').innerHTML = '<div class="empty">Working…</div>';
+  $('#out').scrollIntoView({behavior:'smooth', block:'start'});
+  const s1 = step('recv', 'Received by n8n', 'Run opened, daily limit and budget checked'); setState(s1, 'active');
+  let start;
+  try { start = await (await fetch(N8N + 'exceptions-demo', {method:'POST', body: new URLSearchParams({case: n})})).json(); }
+  catch (e) {
+    setState(s1, 'bad', '!'); s1.querySelector('.body').innerHTML = '<p class="errs">Could not reach n8n. It may still be waking up, try again in a minute.</p>';
+    return lock(false);
+  }
+  if (!start.run_id) {
+    setState(s1, 'bad', '!'); s1.querySelector('.body').innerHTML = `<p class="errs">${esc(start.detail || start.message || 'Refused.')}</p>`;
+    $('#result').innerHTML = `<div class="empty">${esc(start.detail || 'Try again later.')}</div>`;
+    return lock(false);
+  }
+  setState(s1, 'ok', '✓'); $('#runId').textContent = start.run_id.slice(0, 8);
+  setState(step('think', 'Agent is working the case', 'Reading records, then proposing a resolution'), 'active');
+  const t0 = Date.now(); let run = null;
+  while (Date.now() - t0 < 180000) {
+    await new Promise(r => setTimeout(r, 1500));
+    try { run = await (await fetch(API + '/v1/runs/' + start.run_id)).json(); } catch (e) { continue; }
+    if (run.status && run.status !== 'running') break;
+  }
+  if (!run || run.status === 'running') {
+    setState(document.getElementById('s-think'), 'bad', '!');
+    $('#result').innerHTML = '<div class="empty">This is taking longer than expected. Try again in a moment.</div>';
+    return lock(false);
+  }
+  document.getElementById('s-think')?.remove();
+  run.steps.forEach((s, i) => drawStep(s, i));
+  const res = (run.steps.find(s => s.name === 'Result') || {}).detail;
+  if (!res) { $('#result').innerHTML = `<div class="answer"><div class="status" style="color:var(--bad)">Failed</div>${esc(run.error || 'Something went wrong.')}</div>`; return lock(false); }
+  await showProposal(res.proposal_id, res);
+  lock(false);
+}
+
+function drawStep(s, i){
+  const d = s.detail || {};
+  if (s.name === 'Load case') {
+    const el = step('l' + i, 'Opened the held invoice', esc(d.invoice)); setState(el, 'ok', '✓');
+    el.querySelector('.body').innerHTML = `<ul class="assume">${(d.failed_checks || []).map(c => `<li>${esc(c)}</li>`).join('')}</ul>`;
+  } else if (s.name.startsWith('Tool: ')) {
+    const name = s.name.slice(6), el = step('t' + i, TOOLNAME[name] || name); setState(el, 'ok', '✓');
+    const items = Object.entries(d).flatMap(([k, v]) => Array.isArray(v) ? v : [`${k.replace(/_/g, ' ')}: ${typeof v === 'number' ? ghs(v) : v}`]);
+    el.querySelector('.body').innerHTML = `<ul class="assume">${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
+  } else if (s.name === 'Policy check') {
+    const ok = s.status === 'ok', el = step('p' + i, ok ? 'Policy check passed' : 'Policy blocked the proposal', `Proposed: ${esc((ACTION[d.action] || [d.action])[0])}`);
+    setState(el, ok ? 'ok' : 'bad', ok ? '✓' : '✕');
+    if (!ok) el.querySelector('.body').innerHTML = `<ul class="blocked">${(d.blocked || []).map(b => `<li>${esc(b)}</li>`).join('')}</ul>`;
+  } else if (s.name === 'Handed to a person') {
+    setState(step('h' + i, 'Handed to a person', esc(d.reason)), 'warn', '!');
+  } else if (s.name === 'Proposal') {
+    setState(step('x' + i, 'Proposal waiting for approval', s.duration_ms >= 1000 ? `${(s.duration_ms / 1000).toFixed(1)}s of agent work` : ''), 'ok', '✓');
+  }
+}
+
+async function showProposal(pid, res){
+  let p;
+  try { p = await (await fetch(API + '/v1/exceptions/proposals/' + pid)).json(); } catch (e) { return; }
+  const a = ACTION[p.action] || [p.action, 'b-warn'];
+  let html = `<div class="prop"><span class="badge ${a[1]}">${a[0]}</span>
+    <div class="sum">${esc(p.summary)}</div>
+    <div class="money"><div>Billed<b>${ghs(p.billed_total)}</b></div>` +
+    (p.payable_total != null ? `<div>To pay<b>${ghs(p.payable_total)}</b></div>` : '') + `</div>`;
+  if ((p.evidence || []).length) html += `<div class="sec">Evidence</div><ul class="ev">${p.evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul>`;
+  if (p.vendor_email) html += `<div class="sec">Draft to the vendor</div><div class="mail"><div class="h">To <b>${esc(p.vendor_email.to)}</b> (address on file)<br>Subject <b>${esc(p.vendor_email.subject)}</b></div><div class="b">${esc(p.vendor_email.body)}</div></div>`;
+  if (p.internal_note) html += `<div class="sec">Request to ${esc(p.internal_note.team)}</div><div class="mail"><div class="b">${esc(p.internal_note.message)}</div></div>`;
+  if (p.policy && p.policy.overridden) html += `<p class="hint">Policy took over after the agent's proposals were blocked twice.</p>`;
+  html += `<div class="hint">Agent cost $${Number(res.cost_usd || 0).toFixed(4)} · ${res.tool_calls} tool calls · ${esc(res.model)}</div>`;
+  html += p.status === 'pending' ? `<div class="decide" id="decide"><button class="run" id="ap">Approve</button><button class="ghost" id="rj">Reject</button><span class="hint">You are the approver. Approving changes the demo books; emails are never really sent.</span></div><div id="outcome"></div>`
+                                 : outcome(p);
+  html += '</div>';
+  $('#result').innerHTML = html;
+  if (p.status === 'pending') { $('#ap').onclick = () => decide(pid, 'approve', res); $('#rj').onclick = () => decide(pid, 'reject', res); }
+}
+
+async function decide(pid, decision, res){
+  $('#ap').disabled = $('#rj').disabled = true;
+  let out;
+  try { out = await (await fetch(N8N + 'exceptions-decide', {method:'POST', body: new URLSearchParams({proposal_id: pid, decision})})).json(); }
+  catch (e) { $('#outcome').innerHTML = '<p class="errs">Could not reach n8n. Try again.</p>'; $('#ap').disabled = $('#rj').disabled = false; return; }
+  if (!out.status) { $('#outcome').innerHTML = `<p class="errs">${esc(out.detail || 'Could not record the decision.')}</p>`; return; }
+  $('#decide').remove(); $('#outcome').outerHTML = outcome(out);
+}
+
+function outcome(p){
+  const ok = p.status === 'approved';
+  let h = `<div class="outcome ${ok ? '' : 'n'}"><b>${ok ? 'Approved' : 'Rejected'}${p.decided_by ? ' by ' + esc(p.decided_by) : ''}.</b> ${esc(p.result || '')} Invoice status now: <b>${esc(p.invoice_status.replace('_', ' '))}</b>.</div>`;
+  if ((p.ledger || []).length) h += `<div class="sec">Ledger entries</div><div class="tablewrap" style="margin:0"><table><thead><tr><th>Account</th><th>Debit</th><th>Credit</th></tr></thead><tbody>` +
+    p.ledger.map(e => `<tr><td>${esc(e.account)}</td><td class="num">${e.debit ? ghs(e.debit) : ''}</td><td class="num">${e.credit ? ghs(e.credit) : ''}</td></tr>`).join('') + '</tbody></table></div>';
+  if ((p.outbox || []).length) h += `<p class="hint">Email to ${esc(p.outbox[0].to)} queued (demo: not actually sent).</p>`;
+  return h;
+}
+
+init();
+</script>
+</body>
+</html>
