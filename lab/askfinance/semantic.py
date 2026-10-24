@@ -31,12 +31,14 @@ RULES = [
     "Region comes from erp.brnch.rgn joined on the selling branch.",
     "Customer names are free text and some businesses appear twice. When ranking customers, group by cust_cd and show cust_nm; do not merge customers yourself.",
     "Only use the tables listed. Only write a single SELECT (WITH ... SELECT is fine). No writes, no other schemas.",
-    "Return at most 50 rows unless the user asks for more. Give columns clear aliases.",
+    "Only add LIMIT when the question asks for it: 'top N' means LIMIT N, and 'which ... the most / highest / lowest' means LIMIT 1. Otherwise return every row (the system caps output at 200). Give columns clear aliases.",
+    "Products are listed under PRODUCT CATALOG. Match the user's wording to an itm_cd there (e.g. '25kg rice' is GRN-001) instead of asking which product they mean.",
 ]
 
 METRICS = {
     "revenue / sales / turnover": "SUM(i.net_amt * i.fx_rt) over valid invoices, by inv_dt. Excludes tax.",
     "gross sales / sales incl. tax / invoiced amount": "SUM((i.net_amt + i.tax_amt) * i.fx_rt) over valid invoices.",
+    "worth / value of invoices (including voided ones)": "SUM(i.net_amt * i.fx_rt), excluding tax, like revenue. Include tax only if the user says invoiced amount, gross or including tax.",
     "invoice count / number of invoices": "COUNT(*) of valid invoices.",
     "average invoice value": "revenue / invoice count (excl. tax).",
     "units / quantity sold": "SUM(l.qty) from erp.arinvln joined to valid invoices.",
@@ -71,11 +73,16 @@ OUT_OF_SCOPE = [
 ]
 
 
+PRODUCTS = "BEV-001 Bottled water 500ml x24; BEV-002 Malt drink 330ml x24; BEV-003 Orange juice 1L x12; BEV-004 Energy drink 250ml x24; GRN-001 Rice 25kg; GRN-002 Rice 5kg; GRN-003 Wheat flour 50kg; GRN-004 Maize 50kg; GRN-005 Spaghetti 500g x20; OIL-001 Vegetable oil 5L; OIL-002 Vegetable oil 25L; OIL-003 Palm oil 4L; CLN-001 Laundry soap bar x40; CLN-002 Detergent powder 5kg; CLN-003 Bleach 1L x12; CLN-004 Dishwashing liquid 1L x12; PKG-001 Carrier bags x1000; PKG-002 Takeaway packs x500; PKG-003 Shrink wrap roll; PER-001 Toothpaste 100ml x48; PER-002 Body lotion 400ml x24; PER-003 Sanitary pads x48; PER-004 Tissue roll x48"
+CATEGORIES = "BEV Beverages; GRN Grains and flour; OIL Cooking oil; CLN Cleaning products; PKG Packaging; PER Personal care"
+
+
 def prompt_block() -> str:
     lines = [f"Data is as of {AS_OF}.", "", "TABLES"]
     lines += [f"- {k}: {v}" for k, v in TABLES.items()]
     lines += ["", "BUSINESS DEFINITIONS (always use these)"]
     lines += [f"- {k}: {v}" for k, v in METRICS.items()]
+    lines += ["", "PRODUCT CATALOG (itm_cd description)", PRODUCTS, "Categories (cat_cd description): " + CATEGORIES]
     lines += ["", "RULES"] + [f"- {r}" for r in RULES]
     lines += ["", "OUT OF SCOPE (say you can't answer)"] + [f"- {o}" for o in OUT_OF_SCOPE]
     lines += ["", "EXAMPLES"] + [f"Q: {qq}\nSQL: {s}" for qq, s in EXAMPLES]
