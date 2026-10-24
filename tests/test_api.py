@@ -34,5 +34,15 @@ def test_platform_and_closedesk_flow():
         tl = c.get(f"/v1/runs/{run_id}").json()
         assert tl["status"] == "succeeded" and tl["steps"][0]["name"] == "extract"
         assert any(s["build"] == "closedesk" for s in c.get("/v1/stats").json())
-        assert len(c.get("/v1/closedesk/ledger").json()) == 2
-        assert len(c.get("/v1/closedesk/samples").json()) == 12
+        assert len(c.get("/v1/closedesk/ledger").json()) == 2 + 3     # plus the 3 seeded originals
+        assert len(c.get("/v1/closedesk/samples").json()) == 9
+
+        # Demo mode: a resubmitted invoice is caught against seeded history,
+        # but another visitor's earlier run of the same clean invoice is ignored.
+        dup = next(l for l in LABELS if l["case"] == "duplicate")
+        d1 = c.post("/v1/closedesk/record", json={"invoice": dict(dup["truth"], confidence={}), "demo": True}, headers=H).json()
+        assert d1["decision"] == "held"
+        demo_body = {"invoice": dict(clean["truth"], confidence={}), "file_sha256": "sha-1", "demo": True}
+        assert c.post("/v1/closedesk/record", json=demo_body, headers=H).json()["decision"] == "posted"
+        assert c.post("/v1/closedesk/record", json=demo_body, headers=H).json()["decision"] == "posted"
+        assert c.get("/").status_code == 200
