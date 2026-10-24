@@ -7,9 +7,9 @@ the proposal is allowed to reach an approver:
      file. No email goes out, because the email channel may be the compromised one.
   2. Any other fraud check (duplicate, PO belongs to another vendor) can only be
      rejected as a duplicate or escalated.
-  3. Paying more than calculate_payable needs a Northwind document (source internal)
-     the agent actually read: a price_amendment covering that SKU dated on or before
-     the invoice, or a receipt_confirmation, and never past the PO quantity.
+  3. Paying more than calculate_payable (which already applies approved price amendments)
+     needs a Northwind document the agent actually read: an internal receipt_confirmation
+     for goods not yet on a delivery note, and never past the PO quantity.
   4. approve_adjusted must use the amount the code calculated, to the cent.
   5. Evidence may only cite documents the agent opened.
   6. Emails go to the vendor's address on file, never contain a full account number,

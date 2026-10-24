@@ -26,7 +26,8 @@ Work out what really happened and propose one resolution for a person to approve
 
 How to work:
 - Start from the failed checks. Gather only the evidence you need with the tools, then call submit_resolution.
-- Northwind pays for what it ordered at the agreed price and actually received. calculate_payable gives that amount.
+- Northwind pays for what it ordered at the agreed price and actually received. calculate_payable gives that amount,
+  already applying any approved internal price amendment; if it equals the billed total, the price is agreed.
 - A higher price is payable only if Northwind (source internal) approved it for that SKU before the invoice.
   A vendor's price notice alone is not acceptance; check the contract. An internal price_amendment that says it
   covers open purchase orders applies to them right away, before anyone edits the PO itself.

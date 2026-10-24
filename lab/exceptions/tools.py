@@ -108,10 +108,18 @@ class Case:
                                   this_invoice=str(r[0]) == self.invoice_id) for r in rows]}
 
     def calculate_payable(self) -> dict:
-        """What Northwind owes on this invoice: each line at the lower of billed and PO price, for the lower
-        of billed and received quantity. Tax re-applied at 20%."""
+        """What Northwind owes on this invoice: each line at the lower of billed and agreed price (the PO price,
+        or an approved internal amendment in force by the invoice date), for the lower of billed and received
+        quantity. Tax re-applied at 20%."""
         po = self.get_purchase_order()
         price = {l["sku"].upper(): Decimal(str(l["unit_price"])) for l in po.get("lines", [])}
+        basis = {sku: po["po_number"] for sku in price}
+        for doc_id, sku, p in self.conn.execute(      # approved internal amendments in force by the invoice date
+                "SELECT id, upper(sku), unit_price FROM vendor_documents WHERE vendor_id = %s AND source = 'internal' "
+                "AND doc_type = 'price_amendment' AND unit_price IS NOT NULL AND effective_on <= %s ORDER BY effective_on",
+                (self.vendor_id, self.date)):
+            if sku in price:
+                price[sku], basis[sku] = p, f"DOC-{doc_id} (approved amendment)"
         recv: dict[str, Decimal] = {}
         for d in self.get_deliveries()["delivery_notes"]:
             recv[d["sku"].upper()] = recv.get(d["sku"].upper(), Decimal(0)) + Decimal(str(d["qty_received"]))
@@ -123,7 +131,7 @@ class Case:
             amt = (p * q).quantize(TWO)
             sub += amt
             out.append(dict(sku=sku, billed_qty=_f(l["qty"]), payable_qty=_f(q), billed_price=_f(l["unit_price"]),
-                            payable_price=_f(p), payable_amount=_f(amt)))
+                            payable_price=_f(p), price_basis=basis.get(sku, "not on the PO"), payable_amount=_f(amt)))
         tax = (sub * TAX_RATE).quantize(TWO)
         return {"lines": out, "payable_subtotal": _f(sub), "payable_tax": _f(tax), "payable_total": _f(sub + tax),
                 "billed_total": _f(self.total), "difference": _f(self.total - sub - tax)}
@@ -135,8 +143,8 @@ READ_TOOLS = {
     "get_vendor": "The vendor record: email and phone on file, bank account on file, recorded bank changes.",
     "get_vendor_documents": "Emails, contract terms and internal approvals on file for this vendor.",
     "get_related_invoices": "This vendor's other invoices on the books, with status and posting date.",
-    "calculate_payable": "Computes what is owed: lower of billed and PO price, for the lower of billed and "
-                         "received quantity, plus 20% tax.",
+    "calculate_payable": "Computes what is owed: lower of billed and agreed price (PO, or an approved internal "
+                         "amendment), for the lower of billed and received quantity, plus 20% tax.",
 }
 
 SUBMIT = {
