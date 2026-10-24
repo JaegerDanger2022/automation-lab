@@ -2,14 +2,13 @@
 
 Production-style AI automations, built on n8n with the heavy lifting in Python, all running on one shared platform. Each build solves a real business process end to end, is measured against a labelled test set, and can be tried live.
 
-**Try it:** [Close Desk live demo](https://lab-api-z3mx.onrender.com/). Free hosting, so the first run after a quiet spell takes up to a minute to wake.
+**Try it:** [Close Desk](https://lab-api-z3mx.onrender.com/) and [Ask Finance](https://lab-api-z3mx.onrender.com/askfinance) live demos. Free hosting, so the first run after a quiet spell takes up to a minute to wake.
 
 | Build | What it does | Status |
 | --- | --- | --- |
 | **Close Desk** | Invoices to the ledger with three-way matching and fraud checks | [Live](https://lab-api-z3mx.onrender.com/) |
-| Speed-to-Lead | Researched reply and CRM record within 2 minutes of a new lead | Planned |
-| Fintech Support Desk | WhatsApp and web support agent with a public eval report | Planned |
-| FleetPulse | Trotro fleet run from drivers' voice notes in Twi and English | Planned |
+| **Ask Finance** | Plain-English questions over a messy ERP, answered with checked, read-only SQL | [Live](https://lab-api-z3mx.onrender.com/askfinance) |
+| Close Desk exceptions agent | Works held invoices: checks the PO, drafts the vendor email, proposes the fix for approval | Building |
 
 ## How it fits together
 
@@ -53,6 +52,30 @@ A finance team forwards invoices. Each one is read, checked and either posted to
 | End to end with Claude | Pending: runs once the API key is set |
 
 Run it: `python evals/closedesk_eval.py --mode truth` or `--mode model`.
+
+## Ask Finance
+
+Finance staff ask questions in plain English ("How much is overdue, split into ageing buckets?") against a legacy-style ERP and get an answer, the SQL behind it, a table and a chart. The hard part isn't writing SQL. It's that the ERP is awkward in the ways real ones are, and a confident wrong number is worse than no answer.
+
+The ERP (`db/migrations/004_erp.sql`, data from `data/finance/generate.py`) has cryptic table names (`arinv`, `custmst`), status codes, voided and soft-deleted invoices, USD invoices that must be converted at the invoice-date rate, duplicate customers, and a fiscal year starting in July. About 4,900 invoices, 12,000 lines and 4,900 payments over two years.
+
+1. **Semantic layer.** `lab/askfinance/semantic.py` defines what words mean here: revenue excludes voids and deletes and is converted to GHS; "this year" is the fiscal year; "now" is the data's as-of date. The model gets these rules, the schema and worked examples.
+2. **Plan.** Claude answers through a tool schema: run SQL, ask a clarifying question, or refuse.
+3. **Guard.** `sqlguard.py` parses the SQL (sqlglot) before it runs: one SELECT only, ERP tables only, no system functions, plus business checks (voids filtered, currency converted, no `CURRENT_DATE`). A failure goes back to the model with the reason; after two failed repairs it escalates to a stronger model.
+4. **Run.** A read-only transaction with a 5-second timeout and a 200-row cap, so even a guard miss can't change data or hang the database.
+5. **Answer.** A short answer that states its assumptions, with the SQL shown.
+
+### Eval
+
+`evals/askfinance_questions.py` holds 62 questions with gold SQL across nine groups: basics, time periods, currency, traps (voids, deletes, duplicates), joins, receivables, margin, questions that need clarifying, and ones that must be refused. Answers are scored by executing both queries and comparing values (0.5% tolerance), so different but correct SQL passes.
+
+| Eval | Result |
+| --- | --- |
+| Gold SQL through the guard | 62/62 pass the guard and run |
+| Live, Claude Haiku 5.5, first run | 55/62. Misses: added a `LIMIT` nobody asked for (2), couldn't map "25kg rice" to a product code, one result shaped as rows instead of columns, and 3 where the gold SQL itself contradicted the semantic layer |
+| Live, after fixes | 62/62, 1 repair, median 3.3 s per question, $0.07 for the full set |
+
+Fixes were a product catalog in the prompt, a rule against unasked limits, a definition for invoice "worth", corrected gold SQL, and a grader that accepts transposed results. A perfect score on a set the fixes were made against overstates real accuracy, so new questions keep being added. The latest live run is public at [`/v1/askfinance/eval`](https://lab-api-z3mx.onrender.com/v1/askfinance/eval) and shown on the demo page. Each question costs about $0.001.
 
 ## Shared platform
 
