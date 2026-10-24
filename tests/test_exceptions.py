@@ -62,7 +62,8 @@ def test_policy_rules(client):
         pay = amended.calculate_payable()
         docs = amended.get_vendor_documents()["documents"]
         amendment = next(d["id"] for d in docs if d["doc_type"] == "price_amendment")
-        assert policy.check({"action": "approve", "summary": "", "evidence": []}, amended, pay)
+        assert pay["payable_total"] == 6693.60          # the approved amendment is applied in code
+        assert next(l for l in pay["lines"] if l["sku"] == "LED-18")["price_basis"].startswith(amendment)
         assert not policy.check({"action": "approve", "summary": "", "evidence": [f"{amendment}: approved"]}, amended, pay)
 
         extra = Case(c, exc_api.create_demo_invoice(c, 50, None, actor="eval"), demo=True)
